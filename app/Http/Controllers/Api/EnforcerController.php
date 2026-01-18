@@ -304,23 +304,37 @@ class EnforcerController extends Controller
                 ], 422);
             }
 
-            // Sum fines from selected violations unless an explicit fine_amount is provided
+            // Sum fines from selected violations 
             $computedFine = $violations->sum('fine_amount');
+
+            $gpsLatitude = $allData['gps_latitude'] ?? null;
+            $gpsLongitude = $allData['gps_longitude'] ?? null;
+            
+            if ($gpsLatitude !== null && $gpsLongitude !== null) {
+                if (abs($gpsLatitude) > 90 && abs($gpsLongitude) <= 90) {
+                    \Log::warning("GPS coordinates appear swapped - fixing. Original: lat={$gpsLatitude}, lng={$gpsLongitude}");
+                    $temp = $gpsLatitude;
+                    $gpsLatitude = $gpsLongitude;
+                    $gpsLongitude = $temp;
+                    \Log::info("GPS coordinates fixed. New: lat={$gpsLatitude}, lng={$gpsLongitude}");
+                }
+                
+                $gpsLatitude = max(-90, min(90, $gpsLatitude));
+                $gpsLongitude = max(-180, min(180, $gpsLongitude));
+            }
 
             // Create transaction
             $transaction = Transaction::create([
                 'violator_id'          => $violator->id,
                 'vehicle_id'           => $vehicle->id,
-                // Keep legacy column populated with the first violation for backward compatibility
                 'violation_id'         => $violations->first()->id,
                 'apprehending_officer' => auth()->id(),
                 'status'               => 'Pending',
                 'location'             => $allData['location'] ?? 'GPS Location',
                 'date_time'            => now(),
                 'fine_amount'          => $allData['fine_amount'] ?? $computedFine,
-                // GPS Location data
-                'gps_latitude'         => $allData['gps_latitude'] ?? null,
-                'gps_longitude'        => $allData['gps_longitude'] ?? null,
+                'gps_latitude'         => $gpsLatitude,
+                'gps_longitude'        => $gpsLongitude,
                 'gps_accuracy'         => $allData['gps_accuracy'] ?? null,
                 'gps_timestamp'        => $allData['gps_timestamp'] ?? null,
             ]);

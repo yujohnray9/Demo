@@ -288,64 +288,50 @@ $yearlyTrends = Transaction::selectRaw('YEAR(date_time) as year, COUNT(*) as cou
         }
     }
     
-    // Group by location name and get the most common GPS coordinates for each location
+    // Group by rounded GPS coordinates (to cluster nearby violations) instead of location string
+    // This ensures all violations with GPS data are included, regardless of location string
     $locationData = $locationQuery
-        ->selectRaw('location, 
+        ->selectRaw('
+                     ROUND(gps_latitude, 4) as rounded_lat, 
+                     ROUND(gps_longitude, 4) as rounded_lng,
                      AVG(gps_latitude) as gps_latitude, 
                      AVG(gps_longitude) as gps_longitude, 
                      COUNT(*) as count, 
-                     SUM(fine_amount) as total_amount')
-        ->groupBy('location')
+                     SUM(fine_amount) as total_amount,
+                     MIN(location) as location')
+        ->groupBy('rounded_lat', 'rounded_lng')
         ->orderByDesc('count')
         ->get()
         ->map(function($item) {
-            // Clean up location names
-            $locationName = trim($item->location);
+            // Use the actual GPS coordinates (not the location string) to ensure accuracy
+            $lat = round($item->gps_latitude, 6);
+            $lng = round($item->gps_longitude, 6);
             
-            // Debug: Log what we're processing
-            \Log::info("Processing location: '{$locationName}' with count: {$item->count}");
-            
-            // Only generate new names for truly generic/empty locations OR GPS coordinates
-            // Preserve ALL specific location names (from mobile app, seeder, etc.)
-            // Check if location looks like GPS coordinates (e.g., "14.1234, 121.5678")
-            $isGpsCoordinate = preg_match('/^-?\d+\.\d+,\s*-?\d+\.\d+$/', trim($locationName));
-            
-            if (empty($locationName) || 
-                $locationName === 'GPS Location' || 
-                $locationName === 'Unknown Location' ||
-                $isGpsCoordinate ||
-                strpos($locationName, 'Location at') === 0 ||
-                strpos($locationName, 'Echague, Isabela Area') === 0 ||
-                strpos($locationName, 'Echague Town Center') === 0 ||
-                strpos($locationName, 'Near Echague Municipal Hall') === 0 ||
-                strpos($locationName, 'Echague Market Area') === 0 ||
-                strpos($locationName, 'Echague Residential Area') === 0) {
-                
-                \Log::info("Generating new name for: '{$locationName}'");
-                
-                // Create a more meaningful location name based on coordinates
-                $lat = round($item->gps_latitude, 4);
-                $lng = round($item->gps_longitude, 4);
-                
-                // Try to get a better location name using reverse geocoding
-                $locationName = $this->getBetterLocationName($lat, $lng);
-                
-                \Log::info("Generated new name: '{$locationName}'");
-            } else {
-                \Log::info("Preserving original name: '{$locationName}'");
+            // Validate coordinates are within valid ranges (latitude: -90 to 90, longitude: -180 to 180)
+            // If coordinates seem swapped (lat > 90 or lat < -90), swap them
+            if (abs($lat) > 90) {
+                // Coordinates appear to be swapped - latitude should be between -90 and 90
+                \Log::warning("GPS coordinates appear swapped for location: lat={$lat}, lng={$lng}. Swapping values.");
+                $temp = $lat;
+                $lat = $lng;
+                $lng = $temp;
             }
-            // If location name is not empty and not generic, keep it as is
+            
+            // Always generate location name from GPS coordinates to ensure consistency
+            $locationName = $this->getBetterLocationName($lat, $lng);
+            
+            \Log::info("Processing heatmap point: lat={$lat}, lng={$lng}, count={$item->count}, location='{$locationName}'");
             
             return [
                 'location' => $locationName,
-                'gps_latitude' => round($item->gps_latitude, 6),
-                'gps_longitude' => round($item->gps_longitude, 6),
+                'gps_latitude' => $lat,
+                'gps_longitude' => $lng,
                 'count' => (int)$item->count,
-                'total_amount' => $item->total_amount
+                'total_amount' => (float)$item->total_amount
             ];
         });
     
-    // Debug: Log all transactions with GPS coordinates
+   
     $allGpsTransactions = Transaction::where('status', 'Pending')
         ->whereNotNull('gps_latitude')
         ->whereNotNull('gps_longitude')
@@ -354,7 +340,6 @@ $yearlyTrends = Transaction::selectRaw('YEAR(date_time) as year, COUNT(*) as cou
     \Log::info('All GPS transactions count: ' . $allGpsTransactions->count());
     \Log::info('All GPS transactions: ' . $allGpsTransactions->toJson());
     
-    // Debug: Log location data for heatmap
     \Log::info('Location heatmap data: ' . $locationData->toJson());
     
     \Log::info('Unsettled violators count: ' . $unsettledViolators->count());
@@ -392,7 +377,6 @@ $yearlyTrends = Transaction::selectRaw('YEAR(date_time) as year, COUNT(*) as cou
  */
 private function getBetterLocationName($latitude, $longitude)
 {
-    // Strategy 1: Check if coordinates are in known areas of Echague
     $knownAreas = $this->getKnownEchagueAreas($latitude, $longitude);
     if ($knownAreas) {
         return $knownAreas;
