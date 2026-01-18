@@ -71,9 +71,18 @@ class Violator extends Authenticatable
 
     public function getIdPhotoUrlAttribute()
     {
-        // If no photo uploaded, return default photo from public storage
+        // If no photo uploaded, return default photo from Cloudinary
         if (!$this->id_photo) {
-            return url('/backend/storage/id_photos/photo.png');
+            // Use Cloudinary default photo: photo_vnkn19 from cloud with cloud_name 369694168593533
+            // Cloudinary URL format: https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}
+            // Try to extract cloud_name from CLOUDINARY_URL env, or use provided value
+            $cloudinaryUrl = env('CLOUDINARY_URL', '');
+            $cloudName = '369694168593533'; // Default cloud name from provided API/cloud identifier
+            if ($cloudinaryUrl && preg_match('/@([^\/:]+)/', $cloudinaryUrl, $matches)) {
+                // CLOUDINARY_URL format: cloudinary://api_key:api_secret@cloud_name
+                $cloudName = $matches[1];
+            }
+            return "https://res.cloudinary.com/{$cloudName}/image/upload/photo_vnkn19";
         }
 
         // Return secure endpoint URL for uploaded photos

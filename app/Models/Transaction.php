@@ -137,13 +137,10 @@ class Transaction extends Model
     {
         $value = $this->attributes['location'] ?? null;
         
-        // If location looks like GPS coordinates (contains comma and numbers), parse and fix them
         if ($value && preg_match('/^(-?\d+\.\d+),\s*(-?\d+\.\d+)$/', trim($value), $matches)) {
             $firstCoord = (float)$matches[1];
             $secondCoord = (float)$matches[2];
             
-            // Determine which is likely latitude and which is longitude
-            // For Philippines: lat should be ~5-20°N, lng should be ~115-127°E
             $lat = $firstCoord;
             $lng = $secondCoord;
             $likelySwapped = false;

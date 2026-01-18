@@ -2037,12 +2037,13 @@ private function reverseGeocodeLocation($latitude, $longitude)
             }
 
             // Compute attempt number for this specific transaction (1 for first, 2 for second, ...)
+            // Count all transactions for this violator up to and including this transaction, ordered by created_at then id
             try {
                 $transaction->attempt_number = Transaction::where('violator_id', $transaction->violator_id)
                     ->where(function($q) use ($transaction) {
-                        $q->where('date_time', '<', $transaction->date_time)
+                        $q->where('created_at', '<', $transaction->created_at)
                           ->orWhere(function($q2) use ($transaction) {
-                              $q2->where('date_time', $transaction->date_time)
+                              $q2->where('created_at', $transaction->created_at)
                                  ->where('id', '<=', $transaction->id);
                           });
                     })
