@@ -266,7 +266,9 @@ $yearlyTrends = Transaction::selectRaw('YEAR(date_time) as year, COUNT(*) as cou
     // Get location data for heatmap (all pending transactions with GPS coordinates)
     $locationQuery = Transaction::where('status', 'Pending')
         ->whereNotNull('gps_latitude')
-        ->whereNotNull('gps_longitude');
+        ->whereNotNull('gps_longitude')
+        ->where('gps_latitude', '!=', 0)
+        ->where('gps_longitude', '!=', 0);
     
     // Apply period filter if specified
     $heatmapPeriod = $request->get('heatmap_period', 'all');
@@ -307,15 +309,41 @@ $yearlyTrends = Transaction::selectRaw('YEAR(date_time) as year, COUNT(*) as cou
             $lat = round($item->gps_latitude, 6);
             $lng = round($item->gps_longitude, 6);
             
-            // Validate coordinates are within valid ranges (latitude: -90 to 90, longitude: -180 to 180)
-            // If coordinates seem swapped (lat > 90 or lat < -90), swap them
+            // Improved swap detection: Check if coordinates appear swapped
+            // For Philippines: lat should be ~5-20°N, lng should be ~115-127°E
+            // If first value is > 90, it's definitely wrong (lat max is 90)
+            // If first value is > 20 and second is < 20, likely swapped (Philippines context)
+            $likelySwapped = false;
+            
             if (abs($lat) > 90) {
-                // Coordinates appear to be swapped - latitude should be between -90 and 90
+                // Definitely swapped - latitude cannot exceed 90
+                $likelySwapped = true;
+            } elseif (abs($lat) > 20 && abs($lng) <= 20 && abs($lng) >= 5) {
+                // Likely swapped for Philippines context: lat > 20° but lng is in valid Philippines lat range (5-20°)
+                $likelySwapped = true;
+            } elseif (abs($lat) < 5 && abs($lng) > 5 && abs($lng) <= 20) {
+                // Likely swapped: lat < 5° (too low for Philippines) but lng is in valid Philippines lat range
+                $likelySwapped = true;
+            } elseif (abs($lng) < 115 || abs($lng) > 127) {
+                // Longitude outside Philippines range (115-127°E), check if swapping would fix it
+                if (abs($lat) >= 115 && abs($lat) <= 127 && abs($lng) >= 5 && abs($lng) <= 20) {
+                    // Swapping would put lng in Philippines range and lat in valid range
+                    $likelySwapped = true;
+                }
+            }
+            
+            if ($likelySwapped) {
+                // Coordinates appear to be swapped - swap them
                 Log::warning("GPS coordinates appear swapped for location: lat={$lat}, lng={$lng}. Swapping values.");
                 $temp = $lat;
                 $lat = $lng;
                 $lng = $temp;
+                Log::info("GPS coordinates fixed. New: lat={$lat}, lng={$lng}");
             }
+            
+            // Clamp to valid ranges
+            $lat = max(-90, min(90, $lat));
+            $lng = max(-180, min(180, $lng));
             
             // Always generate location name from GPS coordinates to ensure consistency
             $locationName = $this->getBetterLocationName($lat, $lng);
