@@ -218,7 +218,7 @@ $yearlyTrends = Transaction::selectRaw('YEAR(date_time) as year, COUNT(*) as cou
 
     // Debug: Check if there are any pending transactions
     $pendingTransactionsCount = Transaction::where('status', 'Pending')->count();
-    \Log::info('Pending transactions count: ' . $pendingTransactionsCount);
+    Log::info('Pending transactions count: ' . $pendingTransactionsCount);
     
     // Get all violators with pending transactions first
     $allViolatorsWithPending = Violator::withCount(['transactions' => function($q) {
@@ -234,7 +234,7 @@ $yearlyTrends = Transaction::selectRaw('YEAR(date_time) as year, COUNT(*) as cou
     ->having('transactions_count', '>', 0)
     ->get();
     
-    \Log::info('All violators with pending transactions: ' . $allViolatorsWithPending->count());
+    Log::info('All violators with pending transactions: ' . $allViolatorsWithPending->count());
     
     // Process each violator and check days pending
     $unsettledViolators = $allViolatorsWithPending->map(function($violator) {
@@ -245,7 +245,7 @@ $yearlyTrends = Transaction::selectRaw('YEAR(date_time) as year, COUNT(*) as cou
         // Get the most recent apprehension date
         $latestApprehension = $violator->transactions->max('date_time');
         
-        \Log::info("Violator {$violator->id}: days pending = {$daysPending}");
+        Log::info("Violator {$violator->id}: days pending = {$daysPending}");
         
         // Show all pending violators for now, but mark urgency levels
         return [
@@ -311,7 +311,7 @@ $yearlyTrends = Transaction::selectRaw('YEAR(date_time) as year, COUNT(*) as cou
             // If coordinates seem swapped (lat > 90 or lat < -90), swap them
             if (abs($lat) > 90) {
                 // Coordinates appear to be swapped - latitude should be between -90 and 90
-                \Log::warning("GPS coordinates appear swapped for location: lat={$lat}, lng={$lng}. Swapping values.");
+                Log::warning("GPS coordinates appear swapped for location: lat={$lat}, lng={$lng}. Swapping values.");
                 $temp = $lat;
                 $lat = $lng;
                 $lng = $temp;
@@ -320,7 +320,7 @@ $yearlyTrends = Transaction::selectRaw('YEAR(date_time) as year, COUNT(*) as cou
             // Always generate location name from GPS coordinates to ensure consistency
             $locationName = $this->getBetterLocationName($lat, $lng);
             
-            \Log::info("Processing heatmap point: lat={$lat}, lng={$lng}, count={$item->count}, location='{$locationName}'");
+            Log::info("Processing heatmap point: lat={$lat}, lng={$lng}, count={$item->count}, location='{$locationName}'");
             
             return [
                 'location' => $locationName,
@@ -337,15 +337,15 @@ $yearlyTrends = Transaction::selectRaw('YEAR(date_time) as year, COUNT(*) as cou
         ->whereNotNull('gps_longitude')
         ->get(['id', 'location', 'gps_latitude', 'gps_longitude', 'fine_amount', 'created_at']);
     
-    \Log::info('All GPS transactions count: ' . $allGpsTransactions->count());
-    \Log::info('All GPS transactions: ' . $allGpsTransactions->toJson());
+    Log::info('All GPS transactions count: ' . $allGpsTransactions->count());
+    Log::info('All GPS transactions: ' . $allGpsTransactions->toJson());
     
-    \Log::info('Location heatmap data: ' . $locationData->toJson());
+    Log::info('Location heatmap data: ' . $locationData->toJson());
     
-    \Log::info('Unsettled violators count: ' . $unsettledViolators->count());
-    \Log::info('Location data count: ' . $locationData->count());
-    \Log::info('Unsettled violators data: ' . $unsettledViolators->toJson());
-    \Log::info('Location data: ' . $locationData->toJson());
+    Log::info('Unsettled violators count: ' . $unsettledViolators->count());
+    Log::info('Location data count: ' . $locationData->count());
+    Log::info('Unsettled violators data: ' . $unsettledViolators->toJson());
+    Log::info('Location data: ' . $locationData->toJson());
 
     return response()->json([
         'status' => 'success',
@@ -460,7 +460,7 @@ private function reverseGeocodeLocation($latitude, $longitude)
                 return $feature['place_name'] ?? $feature['text'] ?? "Location at {$latitude}, {$longitude}";
             }
         } catch (\Exception $e) {
-            \Log::info('Mapbox geocoding failed, trying OpenStreetMap: ' . $e->getMessage());
+            Log::info('Mapbox geocoding failed, trying OpenStreetMap: ' . $e->getMessage());
         }
         
         // Fallback to OpenStreetMap
@@ -518,7 +518,7 @@ private function reverseGeocodeLocation($latitude, $longitude)
         return "Location at {$latitude}, {$longitude}";
         
     } catch (\Exception $e) {
-        \Log::error('Reverse geocoding failed: ' . $e->getMessage());
+        Log::error('Reverse geocoding failed: ' . $e->getMessage());
         return "Location at {$latitude}, {$longitude}";
     }
 }
@@ -1175,7 +1175,7 @@ private function reverseGeocodeLocation($latitude, $longitude)
             })
             ->toArray();
     }
-//a
+
     private function getEnforcerPerformanceData($dateRange, $limit = 100)
     {
         return Enforcer::with(['transactions' => function ($q) use ($dateRange) {
@@ -2001,8 +2001,8 @@ private function reverseGeocodeLocation($latitude, $longitude)
         return response()->json(['status' => 'success', 'data' => $transactions]);
         
         } catch (\Exception $e) {
-            \Log::error('Error in getTransactions: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            Log::error('Error in getTransactions: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
             
             return response()->json([
                 'status' => 'error',

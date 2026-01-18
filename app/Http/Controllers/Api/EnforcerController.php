@@ -312,11 +312,11 @@ class EnforcerController extends Controller
             
             if ($gpsLatitude !== null && $gpsLongitude !== null) {
                 if (abs($gpsLatitude) > 90 && abs($gpsLongitude) <= 90) {
-                    \Log::warning("GPS coordinates appear swapped - fixing. Original: lat={$gpsLatitude}, lng={$gpsLongitude}");
+                    Log::warning("GPS coordinates appear swapped - fixing. Original: lat={$gpsLatitude}, lng={$gpsLongitude}");
                     $temp = $gpsLatitude;
                     $gpsLatitude = $gpsLongitude;
                     $gpsLongitude = $temp;
-                    \Log::info("GPS coordinates fixed. New: lat={$gpsLatitude}, lng={$gpsLongitude}");
+                    Log::info("GPS coordinates fixed. New: lat={$gpsLatitude}, lng={$gpsLongitude}");
                 }
                 
                 $gpsLatitude = max(-90, min(90, $gpsLatitude));
