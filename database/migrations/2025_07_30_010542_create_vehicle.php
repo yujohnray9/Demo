@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('owner_first_name', 100);
             $table->string('owner_middle_name', 100)->nullable();
             $table->string('owner_last_name', 100);
-            $table->string('plate_number', 10)->unique();
+            $table->text('plate_number');
             $table->string('make', 100);
             $table->string('model', 100);
             $table->string('color', 100);

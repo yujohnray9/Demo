@@ -94,10 +94,7 @@ class ViolatorSeeder extends Seeder
             ]);
         }
 
-        echo "Created Violator #{$i} with {$attempts} attempts.\n";
     }
-
-    echo "✅ Finished seeding 30 violators!\n";
 }
 
 }

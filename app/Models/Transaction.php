@@ -50,7 +50,7 @@ class Transaction extends Model
     /**
      * Append computed attributes to JSON
      */
-    protected $appends = ['formatted_location'];
+    protected $appends = ['formatted_location', 'attempt_number'];
 
     /**
      * Get the violation type for this transaction.
@@ -129,6 +129,32 @@ class Transaction extends Model
     public function getFormattedFineAmountAttribute()
     {
         return '₱' . number_format($this->fine_amount, 2);
+    }
+
+    /**
+     * Get attempt number for this violation (1 for first, 2 for second, etc.)
+     * This is based on the order of all transactions for the same violator.
+     */
+    public function getAttemptNumberAttribute()
+    {
+        try {
+            // Count all transactions for this violator ordered by created_at and id
+            $allViolatorTransactions = Transaction::where('violator_id', $this->violator_id)
+                ->orderBy('created_at', 'asc')
+                ->orderBy('id', 'asc')
+                ->pluck('id')
+                ->toArray();
+            
+            // Find the 1-based index of this transaction in the ordered list
+            $position = array_search($this->id, $allViolatorTransactions);
+            $attemptNumber = $position !== false ? $position + 1 : 1;
+            
+            // Ensure attempt_number is at least 1
+            return max(1, $attemptNumber);
+        } catch (\Throwable $e) {
+            Log::error("Error calculating attempt_number for transaction {$this->id}: " . $e->getMessage());
+            return 1;
+        }
     }
     /**
      * Get human-readable location (converts GPS coordinates to address if needed)
