@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Log;
 
 class Transaction extends Model
 {
@@ -205,7 +206,7 @@ class Transaction extends Model
                 }
             }
         } catch (\Exception $e) {
-            \Log::warning('Mapbox reverse geocoding failed: ' . $e->getMessage());
+            Log::warning('Mapbox reverse geocoding failed: ' . $e->getMessage());
         }
         
         // Return coordinates as fallback

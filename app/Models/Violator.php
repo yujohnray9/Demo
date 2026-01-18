@@ -7,6 +7,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Crypt;
 
 class Violator extends Authenticatable
 {
@@ -70,16 +71,62 @@ class Violator extends Authenticatable
 
     public function getIdPhotoUrlAttribute()
     {
+        // If no photo uploaded, return default photo from public storage
         if (!$this->id_photo) {
-            $configured = config('cloudinary.default_id_photo_url');
-            return $configured ?: url('storage/id_photos/photo.png');
+            return url('/backend/storage/id_photos/photo.png');
         }
-        // If value already looks like a URL (Cloudinary), return as-is
-        if (preg_match('/^https?:\/\//i', $this->id_photo)) {
-            return $this->id_photo;
+
+        // Return secure endpoint URL for uploaded photos
+        $filename = basename($this->id_photo);
+        return url('/api/secure/id-photos/' . $filename);
+    }
+
+    /** 🔹 Encryption/Decryption Mutators & Accessors */
+    
+    // Mobile Number - Encrypt before saving
+    public function setMobileNumberAttribute($value)
+    {
+        if ($value) {
+            $this->attributes['mobile_number'] = Crypt::encryptString($value);
+        } else {
+            $this->attributes['mobile_number'] = null;
         }
-        // Else assume local filename in storage
-        return url('storage/id_photos/' . $this->id_photo);
+    }
+
+    // Mobile Number - Decrypt when retrieving
+    public function getMobileNumberAttribute($value)
+    {
+        if ($value) {
+            try {
+                return Crypt::decryptString($value);
+            } catch (\Exception $e) {
+                return null; // Return null if decryption fails
+            }
+        }
+        return null;
+    }
+
+    // License Number - Encrypt before saving
+    public function setLicenseNumberAttribute($value)
+    {
+        if ($value) {
+            $this->attributes['license_number'] = Crypt::encryptString($value);
+        } else {
+            $this->attributes['license_number'] = null;
+        }
+    }
+
+    // License Number - Decrypt when retrieving
+    public function getLicenseNumberAttribute($value)
+    {
+        if ($value) {
+            try {
+                return Crypt::decryptString($value);
+            } catch (\Exception $e) {
+                return null; 
+            }
+        }
+        return null;
     }
 
     /** 🔹 Relationships */
