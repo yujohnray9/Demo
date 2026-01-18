@@ -352,6 +352,15 @@ class EnforcerController extends Controller
                 $gpsLongitude = max(-180, min(180, $gpsLongitude));
             }
 
+            // Fix location string if it contains coordinates that might be swapped
+            $locationString = $allData['location'] ?? 'GPS Location';
+            if ($gpsLatitude !== null && $gpsLongitude !== null) {
+                // If location string looks like coordinates, update it with corrected values
+                if (preg_match('/^-?\d+\.\d+,\s*-?\d+\.\d+$/', trim($locationString))) {
+                    $locationString = number_format($gpsLatitude, 6) . ', ' . number_format($gpsLongitude, 6);
+                }
+            }
+            
             // Create transaction
             $transaction = Transaction::create([
                 'violator_id'          => $violator->id,
@@ -359,7 +368,7 @@ class EnforcerController extends Controller
                 'violation_id'         => $violations->first()->id,
                 'apprehending_officer' => auth()->id(),
                 'status'               => 'Pending',
-                'location'             => $allData['location'] ?? 'GPS Location',
+                'location'             => $locationString,
                 'date_time'            => now(),
                 'fine_amount'          => $allData['fine_amount'] ?? $computedFine,
                 'gps_latitude'         => $gpsLatitude,

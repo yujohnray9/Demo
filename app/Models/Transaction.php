@@ -137,16 +137,60 @@ class Transaction extends Model
     {
         $value = $this->attributes['location'] ?? null;
         
-        // If location looks like GPS coordinates (contains comma and numbers), try to convert
-        if ($value && preg_match('/^-?\d+\.\d+,\s*-?\d+\.\d+$/', trim($value))) {
-            // Check if we have GPS coordinates stored
-            if ($this->gps_latitude && $this->gps_longitude) {
-                // Try to get cached address or perform reverse geocoding
-                $address = $this->reverseGeocode($this->gps_latitude, $this->gps_longitude);
-                if ($address && $address !== $value) {
-                    return $address;
+        // If location looks like GPS coordinates (contains comma and numbers), parse and fix them
+        if ($value && preg_match('/^(-?\d+\.\d+),\s*(-?\d+\.\d+)$/', trim($value), $matches)) {
+            $firstCoord = (float)$matches[1];
+            $secondCoord = (float)$matches[2];
+            
+            // Determine which is likely latitude and which is longitude
+            // For Philippines: lat should be ~5-20°N, lng should be ~115-127°E
+            $lat = $firstCoord;
+            $lng = $secondCoord;
+            $likelySwapped = false;
+            
+            // Check if coordinates appear swapped
+            if (abs($lat) > 90) {
+                // Definitely swapped - latitude cannot exceed 90
+                $likelySwapped = true;
+            } elseif (abs($lat) > 20 && abs($lng) <= 20 && abs($lng) >= 5) {
+                // Likely swapped for Philippines context: lat > 20° but lng is in valid Philippines lat range (5-20°)
+                $likelySwapped = true;
+            } elseif (abs($lat) < 5 && abs($lng) > 5 && abs($lng) <= 20) {
+                // Likely swapped: lat < 5° (too low for Philippines) but lng is in valid Philippines lat range
+                $likelySwapped = true;
+            } elseif (abs($lng) < 115 || abs($lng) > 127) {
+                // Longitude outside Philippines range (115-127°E), check if swapping would fix it
+                if (abs($lat) >= 115 && abs($lat) <= 127 && abs($lng) >= 5 && abs($lng) <= 20) {
+                    // Swapping would put lng in Philippines range and lat in valid range
+                    $likelySwapped = true;
                 }
             }
+            
+            if ($likelySwapped) {
+                // Swap the coordinates
+                $temp = $lat;
+                $lat = $lng;
+                $lng = $temp;
+            }
+            
+            // Clamp to valid ranges
+            $lat = max(-90, min(90, $lat));
+            $lng = max(-180, min(180, $lng));
+            
+            // Prefer GPS columns if they exist and are different (they should be more accurate)
+            if ($this->gps_latitude && $this->gps_longitude) {
+                $lat = round($this->gps_latitude, 6);
+                $lng = round($this->gps_longitude, 6);
+            }
+            
+            // Try to get cached address or perform reverse geocoding
+            $address = $this->reverseGeocode($lat, $lng);
+            if ($address && $address !== $value) {
+                return $address;
+            }
+            
+            // Return corrected coordinates if reverse geocoding fails
+            return number_format($lat, 6) . ', ' . number_format($lng, 6);
         }
         
         return $value ?: 'N/A';
