@@ -228,9 +228,16 @@ class EnforcerController extends Controller
             DB::beginTransaction();
 
             // Create or get violator
-            $violator = Violator::firstOrCreate(
-                ['license_number' => $allData['license_number']],
-                [
+            // Since license_number is encrypted with random IV, we can't query directly
+            // We need to load violators and decrypt to find a match
+            $violator = Violator::all()->first(function ($v) use ($allData) {
+                return $v->license_number === $allData['license_number'];
+            });
+            
+            if (!$violator) {
+                // Create new violator - the mutator will encrypt license_number automatically
+                $violator = Violator::create([
+                    'license_number' => $allData['license_number'],
                     'first_name'  => $allData['first_name'],
                     'middle_name' => $allData['middle_name'] ?? null,
                     'last_name'   => $allData['last_name'],
@@ -250,8 +257,8 @@ class EnforcerController extends Controller
                     'city'         => $allData['city'] ?? null,
                     'province'     => $allData['province'] ?? null,
                     'professional' => $allData['professional'] ?? false,
-                ]
-            );
+                ]);
+            }
 
             // If violator already exists and a new image was provided, update their ID photo
             if ($request->hasFile('image') && $violator->wasRecentlyCreated === false) {
