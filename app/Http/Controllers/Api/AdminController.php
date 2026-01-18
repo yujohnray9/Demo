@@ -1998,9 +1998,41 @@ private function reverseGeocodeLocation($latitude, $longitude)
                 
                 // If we have GPS coordinates, try to generate a better name
                 if ($transaction->gps_latitude && $transaction->gps_longitude) {
-                    $lat = round($transaction->gps_latitude, 4);
-                    $lng = round($transaction->gps_longitude, 4);
+                    $lat = round($transaction->gps_latitude, 6);
+                    $lng = round($transaction->gps_longitude, 6);
+                    
+                    // Apply same swap detection logic as heatmap
+                    $likelySwapped = false;
+                    
+                    if (abs($lat) > 90) {
+                        $likelySwapped = true;
+                    } elseif (abs($lat) > 20 && abs($lng) <= 20 && abs($lng) >= 5) {
+                        $likelySwapped = true;
+                    } elseif (abs($lat) < 5 && abs($lng) > 5 && abs($lng) <= 20) {
+                        $likelySwapped = true;
+                    } elseif (abs($lng) < 115 || abs($lng) > 127) {
+                        if (abs($lat) >= 115 && abs($lat) <= 127 && abs($lng) >= 5 && abs($lng) <= 20) {
+                            $likelySwapped = true;
+                        }
+                    }
+                    
+                    if ($likelySwapped) {
+                        Log::warning("GPS coordinates appear swapped in transaction display: lat={$lat}, lng={$lng}. Swapping values.");
+                        $temp = $lat;
+                        $lat = $lng;
+                        $lng = $temp;
+                        Log::info("GPS coordinates fixed for display. New: lat={$lat}, lng={$lng}");
+                    }
+                    
+                    // Clamp to valid ranges
+                    $lat = max(-90, min(90, $lat));
+                    $lng = max(-180, min(180, $lng));
+                    
                     $transaction->location = $this->getBetterLocationName($lat, $lng);
+                    
+                    // Also update the transaction object's GPS coordinates for display
+                    $transaction->gps_latitude = $lat;
+                    $transaction->gps_longitude = $lng;
                 }
             }
 
