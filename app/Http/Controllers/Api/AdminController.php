@@ -1175,7 +1175,7 @@ private function reverseGeocodeLocation($latitude, $longitude)
             })
             ->toArray();
     }
-
+//a
     private function getEnforcerPerformanceData($dateRange, $limit = 100)
     {
         return Enforcer::with(['transactions' => function ($q) use ($dateRange) {
