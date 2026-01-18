@@ -2039,20 +2039,24 @@ private function reverseGeocodeLocation($latitude, $longitude)
             // Compute attempt number for this specific transaction (1 for first, 2 for second, ...)
             // Count all transactions for this violator up to and including this transaction, ordered by created_at then id
             try {
-                $transaction->attempt_number = Transaction::where('violator_id', $transaction->violator_id)
-                    ->where(function($q) use ($transaction) {
-                        $q->where('created_at', '<', $transaction->created_at)
-                          ->orWhere(function($q2) use ($transaction) {
-                              $q2->where('created_at', $transaction->created_at)
-                                 ->where('id', '<=', $transaction->id);
-                          });
-                    })
-                    ->count();
-                // Count returns number of earlier-or-equal rows; attempt is that count (>=1)
+                // Use a more reliable method: count all transactions with same violator_id ordered by created_at, id
+                // Then find the position of this transaction in that ordered list
+                $allViolatorTransactions = Transaction::where('violator_id', $transaction->violator_id)
+                    ->orderBy('created_at', 'asc')
+                    ->orderBy('id', 'asc')
+                    ->pluck('id')
+                    ->toArray();
+                
+                // Find the 1-based index of this transaction in the ordered list
+                $position = array_search($transaction->id, $allViolatorTransactions);
+                $transaction->attempt_number = $position !== false ? $position + 1 : 1;
+                
+                // Ensure attempt_number is at least 1
                 if ($transaction->attempt_number < 1) {
                     $transaction->attempt_number = 1;
                 }
             } catch (\Throwable $e) {
+                \Log::error("Error calculating attempt_number for transaction {$transaction->id}: " . $e->getMessage());
                 $transaction->attempt_number = 1;
             }
 

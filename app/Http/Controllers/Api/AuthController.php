@@ -181,10 +181,8 @@ class AuthController extends Controller
                     $fullName = trim($violator->first_name . ' ' . ($violator->middle_name ? $violator->middle_name . ' ' : '') . $violator->last_name);
                     $accountType = $violator->professional ? 'Professional Driver' : 'Non-Professional Driver';
                     
-                    // Generate verification token
                     $verificationToken = Str::random(60);
                     
-                    // Store verification token in password_reset_tokens table (reusing existing table)
                     DB::table('password_reset_tokens')->updateOrInsert(
                         ['email' => $violator->email . '|verification'],
                         [

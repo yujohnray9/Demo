@@ -73,16 +73,18 @@ class Violator extends Authenticatable
     {
         // If no photo uploaded, return default photo from Cloudinary
         if (!$this->id_photo) {
-            // Use Cloudinary default photo: photo_vnkn19 from cloud with cloud_name 369694168593533
+            // Use Cloudinary default photo: photo_vnkn19 from cloud with cloud_name duqqr1lxl
             // Cloudinary URL format: https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}
-            // Try to extract cloud_name from CLOUDINARY_URL env, or use provided value
+            // Try to extract cloud_name from CLOUDINARY_URL env, or use duqqr1lxl as default
             $cloudinaryUrl = env('CLOUDINARY_URL', '');
-            $cloudName = '369694168593533'; // Default cloud name from provided API/cloud identifier
+            $cloudName = 'duqqr1lxl'; // Default cloud name from provided URL
             if ($cloudinaryUrl && preg_match('/@([^\/:]+)/', $cloudinaryUrl, $matches)) {
                 // CLOUDINARY_URL format: cloudinary://api_key:api_secret@cloud_name
                 $cloudName = $matches[1];
             }
-            return "https://res.cloudinary.com/{$cloudName}/image/upload/photo_vnkn19";
+            // Use the full path including version if needed: v1758196654/photo_vnkn19.png
+            // Or just photo_vnkn19 if version is not needed
+            return "https://res.cloudinary.com/{$cloudName}/image/upload/photo_vnkn19.png";
         }
 
         // Return secure endpoint URL for uploaded photos
