@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             ViolationSeeder::class,
             ViolatorSeeder::class,
+            NotificationSeeder::class,
         ]);
     }
 }

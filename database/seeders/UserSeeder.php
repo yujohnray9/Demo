@@ -19,25 +19,23 @@ class UserSeeder extends Seeder
         // 1 Admin
         Admin::create([
             'id' => 1,
-            'first_name' => 'Admin',
-            'last_name' => 'User',
+            'first_name' => 'Marlon ',
+            'last_name' => 'Reyes',
             'username' => 'admin01',
             'email' => 'admin@moms.com',
             'office'=> 'POSU',
             'password' => Hash::make('password123'),
-            'status' => 'activated'
         ]);
 
         // 1 Head
         Head::create([
             'id' => 1,
-            'first_name' => 'Head',
-            'last_name' => 'User',
+            'first_name' => 'John',
+            'last_name' => 'Ibarra',
             'username' => 'head01',
             'email' => 'head@moms.com',
             'office'=> 'POSU',
             'password' => Hash::make('password123'),
-            'status' => 'activated'
         ]);
          Head::create([
             'id' => 2,
@@ -47,20 +45,18 @@ class UserSeeder extends Seeder
             'email' => 'john@moms.com',
             'office'=> 'POSU',
             'password' => Hash::make('password123'),
-            'status' => 'activated'
         ]);
 
 
         // 1 Deputy
         Deputy::create([
             'id' => 1,
-            'first_name' => 'Deputy',
-            'last_name' => 'User',
+            'first_name' => 'Elmer',
+            'last_name' => 'De Guzman',
             'username' => 'deputy01',
             'email' => 'deputy@moms.com',
             'office'=> 'POSU',
             'password' => Hash::make('password123'),
-            'status' => 'activated'
         ]);
 
         // 3 Enforcers
@@ -72,7 +68,6 @@ class UserSeeder extends Seeder
             'office' => 'POSU',
             'email' => 'enforcer1@moms.com',
             'password' => Hash::make('password123'),
-            'status' => 'activated'
         ]);
 
         Enforcer::create([
@@ -83,7 +78,6 @@ class UserSeeder extends Seeder
             'office' => 'PNP ISmart',
             'email' => 'enforcer2@moms.com',
             'password' => Hash::make('password123'),
-            'status' => 'activated'
         ]);
 
         Enforcer::create([

@@ -92,31 +92,6 @@ class Violator extends Authenticatable
         return url('/api/secure/id-photos/' . $filename);
     }
 
-    /** 🔹 Encryption/Decryption Mutators & Accessors */
-    
-    // Mobile Number - Encrypt before saving
-    public function setMobileNumberAttribute($value)
-    {
-        if ($value) {
-            $this->attributes['mobile_number'] = Crypt::encryptString($value);
-        } else {
-            $this->attributes['mobile_number'] = null;
-        }
-    }
-
-    // Mobile Number - Decrypt when retrieving
-    public function getMobileNumberAttribute($value)
-    {
-        if ($value) {
-            try {
-                return Crypt::decryptString($value);
-            } catch (\Exception $e) {
-                return null; // Return null if decryption fails
-            }
-        }
-        return null;
-    }
-
     // License Number - Encrypt before saving
     public function setLicenseNumberAttribute($value)
     {
