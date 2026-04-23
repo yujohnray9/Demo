@@ -228,14 +228,12 @@ class EnforcerController extends Controller
             DB::beginTransaction();
 
             // Create or get violator
-            // Since license_number is encrypted with random IV, we can't query directly
-            // We need to load violators and decrypt to find a match
             $violator = Violator::all()->first(function ($v) use ($allData) {
                 return $v->license_number === $allData['license_number'];
             });
             
             if (!$violator) {
-                // Create new violator - the mutator will encrypt license_number automatically
+                // Create new violator 
                 $violator = Violator::create([
                     'license_number' => $allData['license_number'],
                     'first_name'  => $allData['first_name'],
@@ -320,43 +318,6 @@ class EnforcerController extends Controller
             // Log received coordinates for debugging
             if ($gpsLatitude !== null && $gpsLongitude !== null) {
                 Log::info("Received GPS coordinates: lat={$gpsLatitude}, lng={$gpsLongitude}");
-            }
-            
-            if ($gpsLatitude !== null && $gpsLongitude !== null) {
-                // Improved swap detection: Check if coordinates appear swapped
-                // For Philippines: lat should be ~5-20°N, lng should be ~115-127°E
-                // If first value is > 90, it's definitely wrong (lat max is 90)
-                // If first value is > 20 and second is < 20, likely swapped (Philippines context)
-                $likelySwapped = false;
-                
-                if (abs($gpsLatitude) > 90) {
-                    // Definitely swapped - latitude cannot exceed 90
-                    $likelySwapped = true;
-                } elseif (abs($gpsLatitude) > 20 && abs($gpsLongitude) <= 20 && abs($gpsLongitude) >= 5) {
-                    // Likely swapped for Philippines context: lat > 20° but lng is in valid Philippines lat range (5-20°)
-                    $likelySwapped = true;
-                } elseif (abs($gpsLatitude) < 5 && abs($gpsLongitude) > 5 && abs($gpsLongitude) <= 20) {
-                    // Likely swapped: lat < 5° (too low for Philippines) but lng is in valid Philippines lat range
-                    $likelySwapped = true;
-                } elseif (abs($gpsLongitude) < 115 || abs($gpsLongitude) > 127) {
-                    // Longitude outside Philippines range (115-127°E), check if swapping would fix it
-                    if (abs($gpsLatitude) >= 115 && abs($gpsLatitude) <= 127 && abs($gpsLongitude) >= 5 && abs($gpsLongitude) <= 20) {
-                        // Swapping would put lng in Philippines range and lat in valid range
-                        $likelySwapped = true;
-                    }
-                }
-                
-                if ($likelySwapped) {
-                    Log::warning("GPS coordinates appear swapped - fixing. Original: lat={$gpsLatitude}, lng={$gpsLongitude}");
-                    $temp = $gpsLatitude;
-                    $gpsLatitude = $gpsLongitude;
-                    $gpsLongitude = $temp;
-                    Log::info("GPS coordinates fixed. New: lat={$gpsLatitude}, lng={$gpsLongitude}");
-                }
-                
-                // Clamp to valid ranges
-                $gpsLatitude = max(-90, min(90, $gpsLatitude));
-                $gpsLongitude = max(-180, min(180, $gpsLongitude));
             }
 
             // Fix location string if it contains coordinates that might be swapped

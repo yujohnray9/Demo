@@ -290,8 +290,6 @@ $yearlyTrends = Transaction::selectRaw('YEAR(date_time) as year, COUNT(*) as cou
         }
     }
     
-    // Group by rounded GPS coordinates (to cluster nearby violations) instead of location string
-    // This ensures all violations with GPS data are included, regardless of location string
     $locationData = $locationQuery
         ->selectRaw('
                      ROUND(gps_latitude, 4) as rounded_lat, 
@@ -305,41 +303,9 @@ $yearlyTrends = Transaction::selectRaw('YEAR(date_time) as year, COUNT(*) as cou
         ->orderByDesc('count')
         ->get()
         ->map(function($item) {
-            // Use the actual GPS coordinates (not the location string) to ensure accuracy
+            // Use the actual GPS coordinates 
             $lat = round($item->gps_latitude, 6);
             $lng = round($item->gps_longitude, 6);
-            
-            // Improved swap detection: Check if coordinates appear swapped
-            // For Philippines: lat should be ~5-20°N, lng should be ~115-127°E
-            // If first value is > 90, it's definitely wrong (lat max is 90)
-            // If first value is > 20 and second is < 20, likely swapped (Philippines context)
-            $likelySwapped = false;
-            
-            if (abs($lat) > 90) {
-                // Definitely swapped - latitude cannot exceed 90
-                $likelySwapped = true;
-            } elseif (abs($lat) > 20 && abs($lng) <= 20 && abs($lng) >= 5) {
-                // Likely swapped for Philippines context: lat > 20° but lng is in valid Philippines lat range (5-20°)
-                $likelySwapped = true;
-            } elseif (abs($lat) < 5 && abs($lng) > 5 && abs($lng) <= 20) {
-                // Likely swapped: lat < 5° (too low for Philippines) but lng is in valid Philippines lat range
-                $likelySwapped = true;
-            } elseif (abs($lng) < 115 || abs($lng) > 127) {
-                // Longitude outside Philippines range (115-127°E), check if swapping would fix it
-                if (abs($lat) >= 115 && abs($lat) <= 127 && abs($lng) >= 5 && abs($lng) <= 20) {
-                    // Swapping would put lng in Philippines range and lat in valid range
-                    $likelySwapped = true;
-                }
-            }
-            
-            if ($likelySwapped) {
-                // Coordinates appear to be swapped - swap them
-                Log::warning("GPS coordinates appear swapped for location: lat={$lat}, lng={$lng}. Swapping values.");
-                $temp = $lat;
-                $lat = $lng;
-                $lng = $temp;
-                Log::info("GPS coordinates fixed. New: lat={$lat}, lng={$lng}");
-            }
             
             // Clamp to valid ranges
             $lat = max(-90, min(90, $lat));
@@ -410,13 +376,13 @@ private function getBetterLocationName($latitude, $longitude)
         return $knownAreas;
     }
     
-    // Strategy 2: Try reverse geocoding with multiple providers
+    // Reverse geocoding with multiple providers
     $reverseGeocoded = $this->reverseGeocodeLocation($latitude, $longitude);
     if ($reverseGeocoded && !str_contains($reverseGeocoded, 'Location at')) {
         return $reverseGeocoded;
     }
     
-    // Strategy 3: Create a descriptive location based on coordinates
+    // Create a descriptive location based on coordinates
     $lat = round($latitude, 4);
     $lng = round($longitude, 4);
     
@@ -471,11 +437,11 @@ private function reverseGeocodeLocation($latitude, $longitude)
     try {
         $client = new \GuzzleHttp\Client();
         
-        // Try Mapbox first (better for rural areas)
+       
         try {
             $mapboxResponse = $client->get("https://api.mapbox.com/geocoding/v5/mapbox.places/{$longitude},{$latitude}.json", [
                 'query' => [
-                    'access_token' => env('MAPBOX_ACCESS_TOKEN', 'pk.eyJ1IjoieXVqb2hucmF5IiwiYSI6ImNtaDczcG94MDBubGgybHNieml0ZmJ6bmwifQ.KRR3neB3mYayV6L8sN71uA'),
+                    'access_token' => env('MAPBOX_ACCESS_TOKEN'),
                     'types' => 'address,poi,place',
                     'limit' => 1
                 ]
@@ -741,7 +707,6 @@ private function reverseGeocodeLocation($latitude, $longitude)
         $authUser = $request->user('sanctum');
 
         if (!$this->canManageUserType($authUser, $userType)) {
-            // Allow self-profile updates even if role cannot manage this type
             $selfType = $this->getUserType($authUser);
             if (!($selfType === $userType && (int) $id === (int) $authUser->id)) {
                 return response()->json([
@@ -2056,7 +2021,7 @@ private function reverseGeocodeLocation($latitude, $longitude)
                     $transaction->attempt_number = 1;
                 }
             } catch (\Throwable $e) {
-                \Log::error("Error calculating attempt_number for transaction {$transaction->id}: " . $e->getMessage());
+                Log::error("Error calculating attempt_number for transaction {$transaction->id}: " . $e->getMessage());
                 $transaction->attempt_number = 1;
             }
 

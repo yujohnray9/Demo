@@ -47,9 +47,6 @@ class AuthController extends Controller
         return null;
     }
 
-
-    // Removed old mixed login() method. Use loginOfficials() and loginViolator().
-
     /**
      * Login for Admin/Deputy/Head only
      */
