@@ -228,9 +228,7 @@ class EnforcerController extends Controller
             DB::beginTransaction();
 
             // Create or get violator
-            $violator = Violator::all()->first(function ($v) use ($allData) {
-                return $v->license_number === $allData['license_number'];
-            });
+            $violator = Violator::where('license_number', $allData['license_number'])->first();
             
             if (!$violator) {
                 // Create new violator 
